@@ -78,7 +78,7 @@ pub mod extractors;
 pub mod file_stream;
 
 /// Request handler traits and implementations.
-mod handler;
+pub mod handler;
 
 /// Middleware for processing requests and responses in a pipeline.
 pub mod middleware;
