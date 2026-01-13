@@ -313,10 +313,10 @@ pub mod opentelemetry_backend {
 
   impl OtelMetricsBackend {
     pub fn new(meter: Meter) -> Self {
-      let http_requests_total = meter.u64_counter("tako_http_requests_total").init();
-      let http_route_requests_total = meter.u64_counter("tako_route_requests_total").init();
-      let connections_opened_total = meter.u64_counter("tako_connections_opened_total").init();
-      let connections_closed_total = meter.u64_counter("tako_connections_closed_total").init();
+      let http_requests_total = meter.u64_counter("tako_http_requests_total").build();
+      let http_route_requests_total = meter.u64_counter("tako_route_requests_total").build();
+      let connections_opened_total = meter.u64_counter("tako_connections_opened_total").build();
+      let connections_closed_total = meter.u64_counter("tako_connections_closed_total").build();
 
       Self {
         http_requests_total,
