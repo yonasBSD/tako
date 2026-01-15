@@ -129,6 +129,11 @@ pub mod types;
 #[cfg(not(feature = "compio"))]
 pub mod ws;
 
+/// WebSocket connection handling for compio runtime.
+#[cfg(feature = "compio-ws")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compio-ws")))]
+pub mod ws_compio;
+
 /// GraphQL support (request extractors, responses, and subscriptions).
 #[cfg(feature = "async-graphql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async-graphql")))]
@@ -175,7 +180,6 @@ pub use responder::NOT_FOUND;
 /// ```
 #[cfg(not(feature = "compio"))]
 pub use server::serve;
-
 #[cfg(feature = "compio")]
 pub use server_compio::serve;
 
@@ -185,6 +189,13 @@ pub use server_compio::serve;
 /// This helper is primarily intended for local development and example binaries.
 /// It will keep proposing the next port number until a free one is found or
 /// the user declines.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The provided address string is not a valid socket address.
+/// - The port is already in use and the user declines to try another port.
+/// - A non-recoverable I/O error occurs during binding.
 #[cfg(not(feature = "compio"))]
 pub async fn bind_with_port_fallback(addr: &str) -> io::Result<tokio::net::TcpListener> {
   let mut socket_addr =
@@ -216,6 +227,15 @@ pub async fn bind_with_port_fallback(addr: &str) -> io::Result<tokio::net::TcpLi
   }
 }
 
+/// Bind a TCP listener for `addr`, asking interactively to increment the port
+/// if it is already in use (compio version).
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The provided address string is not a valid socket address.
+/// - The port is already in use and the user declines to try another port.
+/// - A non-recoverable I/O error occurs during binding.
 #[cfg(feature = "compio")]
 pub async fn bind_with_port_fallback(addr: &str) -> io::Result<compio::net::TcpListener> {
   let mut socket_addr =
@@ -288,6 +308,32 @@ pub mod server_compio;
 #[cfg_attr(docsrs, doc(cfg(feature = "compio")))]
 pub mod server_tls_compio;
 
+/// HTTP/3 server implementation using QUIC transport.
+#[cfg(feature = "http3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http3")))]
+pub mod server_h3;
+
+/// Starts the HTTP/3 server with QUIC transport.
+///
+/// HTTP/3 provides improved performance through QUIC's features like reduced
+/// latency, better multiplexing, and built-in encryption.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// # #[cfg(feature = "http3")]
+/// use tako::{serve_h3, router::Router};
+///
+/// # #[cfg(feature = "http3")]
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let router = Router::new();
+/// serve_h3(router, "[::]:4433", Some("cert.pem"), Some("key.pem")).await;
+/// # Ok(())
+/// # }
+/// ```
+#[cfg(feature = "http3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http3")))]
+pub use server_h3::serve_h3;
 /// Starts the HTTPS server with TLS encryption support.
 ///
 /// Similar to `serve` but enables TLS encryption for secure connections. Requires
@@ -312,7 +358,6 @@ pub mod server_tls_compio;
 #[cfg(all(not(feature = "compio"), feature = "tls"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
 pub use server_tls::serve_tls;
-
 #[cfg(feature = "compio-tls")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
 pub use server_tls_compio::serve_tls;
