@@ -30,15 +30,16 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::Duration;
 #[cfg(feature = "plugins")]
 use std::sync::atomic::AtomicBool;
 #[cfg(feature = "plugins")]
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use http::Method;
 use parking_lot::RwLock;
 
+use crate::extractors::json::SimdJsonMode;
 use crate::handler::BoxHandler;
 use crate::middleware::Next;
 #[cfg(any(feature = "utoipa", feature = "vespera"))]
@@ -82,6 +83,8 @@ pub struct Route {
   pub(crate) openapi: RwLock<Option<RouteOpenApi>>,
   /// Route-specific timeout override.
   pub(crate) timeout: RwLock<Option<Duration>>,
+  /// Route-level SIMD JSON dispatch mode.
+  pub(crate) simd_json_mode: RwLock<Option<SimdJsonMode>>,
 }
 
 impl Route {
@@ -103,6 +106,7 @@ impl Route {
       #[cfg(any(feature = "utoipa", feature = "vespera"))]
       openapi: RwLock::new(None),
       timeout: RwLock::new(None),
+      simd_json_mode: RwLock::new(None),
     }
   }
 
@@ -247,9 +251,7 @@ impl Route {
     self.signals.emit(signal).await;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
   // OpenAPI metadata methods
-  // ─────────────────────────────────────────────────────────────────────────────
 
   /// Sets a unique operation ID for this route in OpenAPI documentation.
   ///
@@ -425,7 +427,7 @@ impl Route {
   pub fn openapi_metadata(&self) -> Option<RouteOpenApi> {
     self.openapi.read().clone()
   }
-  
+
   /// Sets a timeout for this route, overriding the router-level timeout.
   ///
   /// When a request exceeds the timeout duration, the timeout fallback handler
@@ -448,5 +450,41 @@ impl Route {
   /// Returns the configured timeout for this route, if any.
   pub(crate) fn get_timeout(&self) -> Option<Duration> {
     *self.timeout.read()
+  }
+
+  /// Configures the SIMD JSON dispatch behavior for this route.
+  ///
+  /// When the `simd` feature is enabled, `Json<T>` can use the `sonic_rs` SIMD
+  /// parser for faster deserialization. By default, SIMD is used for payloads
+  /// above 2 MB. This method lets you override that threshold — or force
+  /// SIMD on/off — for individual routes.
+  ///
+  /// Without the `simd` feature this setting is accepted but has no effect.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,ignore
+  /// use tako::extractors::json::SimdJsonMode;
+  ///
+  /// // Always use SIMD for a heavy ingest endpoint
+  /// router.route(Method::POST, "/api/ingest", ingest)
+  ///     .simd_json(SimdJsonMode::Always);
+  ///
+  /// // Use SIMD only above 4 KB
+  /// router.route(Method::POST, "/api/batch", batch)
+  ///     .simd_json(SimdJsonMode::Threshold(4096));
+  ///
+  /// // Disable SIMD for a latency-sensitive tiny-payload route
+  /// router.route(Method::POST, "/api/ping", ping)
+  ///     .simd_json(SimdJsonMode::Never);
+  /// ```
+  pub fn simd_json(&self, mode: SimdJsonMode) -> &Self {
+    *self.simd_json_mode.write() = Some(mode);
+    self
+  }
+
+  /// Returns the configured SIMD JSON mode for this route, if any.
+  pub(crate) fn get_simd_json_mode(&self) -> Option<SimdJsonMode> {
+    *self.simd_json_mode.read()
   }
 }

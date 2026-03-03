@@ -65,9 +65,12 @@ use std::str::FromStr;
 pub mod body;
 
 /// HTTP client implementation for making outbound requests.
-#[cfg(feature = "client")]
+#[cfg(all(feature = "client", not(feature = "compio")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "client")))]
 pub mod client;
+
+/// Configuration loading from environment variables.
+pub mod config;
 
 /// Request data extraction utilities for parsing query params, JSON, and more.
 pub mod extractors;
@@ -106,6 +109,9 @@ mod server;
 
 /// Server-Sent Events (SSE) support for real-time communication.
 pub mod sse;
+
+/// In-memory background job queue with retry, delayed jobs, and dead letter support.
+pub mod queue;
 
 /// Application state management and dependency injection.
 pub mod state;
@@ -180,8 +186,12 @@ pub use responder::NOT_FOUND;
 /// ```
 #[cfg(not(feature = "compio"))]
 pub use server::serve;
+#[cfg(not(feature = "compio"))]
+pub use server::serve_with_shutdown;
 #[cfg(feature = "compio")]
 pub use server_compio::serve;
+#[cfg(feature = "compio")]
+pub use server_compio::serve_with_shutdown;
 
 /// Bind a TCP listener for `addr`, asking interactively to increment the port
 /// if it is already in use.
@@ -309,9 +319,33 @@ pub mod server_compio;
 pub mod server_tls_compio;
 
 /// HTTP/3 server implementation using QUIC transport.
-#[cfg(feature = "http3")]
+#[cfg(all(feature = "http3", not(feature = "compio")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "http3")))]
 pub mod server_h3;
+
+/// Raw TCP server for handling arbitrary TCP connections.
+pub mod server_tcp;
+
+/// UDP datagram server for handling raw UDP packets.
+pub mod server_udp;
+
+/// Unix Domain Socket server for local IPC and reverse proxy communication.
+#[cfg(all(unix, not(feature = "compio")))]
+pub mod server_unix;
+
+/// PROXY protocol v1/v2 parser for load balancer integration.
+#[cfg(not(feature = "compio"))]
+pub mod proxy_protocol;
+
+/// gRPC support for unary RPCs with protobuf serialization.
+#[cfg(feature = "grpc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+pub mod grpc;
+
+/// WebTransport server support over QUIC.
+#[cfg(all(feature = "webtransport", not(feature = "compio")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "webtransport")))]
+pub mod webtransport;
 
 /// Starts the HTTP/3 server with QUIC transport.
 ///
@@ -331,9 +365,12 @@ pub mod server_h3;
 /// # Ok(())
 /// # }
 /// ```
-#[cfg(feature = "http3")]
+#[cfg(all(feature = "http3", not(feature = "compio")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "http3")))]
 pub use server_h3::serve_h3;
+#[cfg(all(feature = "http3", not(feature = "compio")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "http3")))]
+pub use server_h3::serve_h3_with_shutdown;
 /// Starts the HTTPS server with TLS encryption support.
 ///
 /// Similar to `serve` but enables TLS encryption for secure connections. Requires
@@ -358,9 +395,15 @@ pub use server_h3::serve_h3;
 #[cfg(all(not(feature = "compio"), feature = "tls"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
 pub use server_tls::serve_tls;
+#[cfg(all(not(feature = "compio"), feature = "tls"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
+pub use server_tls::serve_tls_with_shutdown;
 #[cfg(feature = "compio-tls")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
 pub use server_tls_compio::serve_tls;
+#[cfg(feature = "compio-tls")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
+pub use server_tls_compio::serve_tls_with_shutdown;
 
 /// Global memory allocator using jemalloc for improved performance.
 #[cfg(feature = "jemalloc")]
